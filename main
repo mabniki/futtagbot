@@ -1,0 +1,65 @@
+import logging
+from telegram import Update
+from telegram.ext import Application, MessageHandler, CallbackContext, filters
+
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Function to modify the tagline (e.g., replace the last line)
+def modify_tagline(text: str, tagline: str) -> str:
+    lines = text.splitlines()  # Split the caption into lines
+    if lines:  # Check if there are any lines
+        lines[-1] = tagline.strip()  # Replace the last line with the new tagline
+        return '\n'.join(lines)  # Join the lines back together
+    return tagline.strip()  # If no lines, return just the tagline
+
+# Function to handle forwarded messages
+async def handle_forward(update: Update, context: CallbackContext) -> None:
+    logger.info("Received a forwarded message.")
+
+    tagline = "@fut_line"  # Your desired tagline here
+
+    if update.message.text:  # If it's a text message
+        forwarded_message = update.message.text
+        modified_text = modify_tagline(forwarded_message, tagline)
+        await update.message.reply_text(modified_text)
+        logger.info("Replied with modified text.")
+
+    elif update.message.photo:  # If it's a photo
+        original_caption = update.message.caption or ""  # Keep the original caption
+        modified_caption = modify_tagline(original_caption, tagline)  # Modify the caption
+
+        # Send the photo again with the new caption
+        await context.bot.send_photo(
+            chat_id=update.message.chat_id,
+            photo=update.message.photo[-1].file_id,  # Get the last photo size
+            caption=modified_caption
+        )
+        logger.info("Resent the photo with modified caption.")
+
+    elif update.message.video:  # If it's a video
+        original_caption = update.message.caption or ""  # Keep the original caption
+        modified_caption = modify_tagline(original_caption, tagline)  # Modify the caption
+
+        # Send the video again with the new caption
+        await context.bot.send_video(
+            chat_id=update.message.chat_id,
+            video=update.message.video.file_id,  # Get the video file ID
+            caption=modified_caption
+        )
+        logger.info("Resent the video with modified caption.")
+
+# Main function to set up the bot
+def main():
+    # Replace 'YOUR_BOT_API_TOKEN' with your bot token from BotFather
+    token = 'your_bot_token'
+
+    application = Application.builder().token(token).build()
+    application.add_handler(MessageHandler(filters.FORWARDED, handle_forward))  # Handle all forwarded messages
+
+    # Start polling to handle updates
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
